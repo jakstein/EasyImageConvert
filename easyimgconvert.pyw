@@ -55,10 +55,12 @@ def convert_and_replace(file_paths, target_format, quality):
                 if exif_data:
                     save_args['exif'] = exif_data
                 img.save(new_file_path, target_format_pil, **save_args)
+                log_message(f"Converted {file_path} to {new_file_path} with quality {quality}")
 
-                # delete the original file (may add toggle for this later)
-                os.remove(file_path)
-                log_message(f"Converted {file_path} to {new_file_path} with quality {quality} and removed the original.")
+                if overwrite_var.get():
+                    # delete the original file if overwrite_var is True
+                    os.remove(file_path)
+
             except Exception as e:
                 log_message(f"Error processing {file_path}: {e}")
         else:
@@ -142,6 +144,12 @@ quality_slider.bind("<Motion>", on_quality_change)
 # label for quality value
 quality_value_label = ttk.Label(quality_frame, text=f"Quality: {quality_var.get()}", background='#2b2b2b', foreground='white')
 quality_value_label.pack(side=tk.LEFT, padx=5)
+
+# overwrite toggle
+overwrite_var = tk.BooleanVar(value=True)
+overwrite_checkbox = ttk.Checkbutton(root, text="Overwrite Source Files", variable=overwrite_var, style='TCheckbutton')
+overwrite_checkbox.pack(pady=5)
+
 
 on_format_change()
 
