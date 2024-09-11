@@ -42,5 +42,4 @@ pip install tkinterdnd2 Pillow pillow_avif pillow_jxl
 
 This project is licensed under the MIT License.
 
-![Screenshot](https://i.postimg.cc/SK0zy32x/image.png)
-```
+[![image.png](https://i.postimg.cc/nz4s19fJ/image.png)](https://postimg.cc/qh7MJR7b)
