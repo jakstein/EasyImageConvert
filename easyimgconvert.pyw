@@ -67,9 +67,14 @@ def convert_and_replace(file_paths, target_format, quality):
             log_message(f"Skipping {file_path}, not a supported image format.")
 
 def process_directory(directory, target_format, quality):
-    # recursive search for files
-    for root_dir, _, files in os.walk(directory):
-        file_paths = [os.path.join(root_dir, file) for file in files]
+    if recursive_var.get():
+        # recursive search for files
+        for root_dir, _, files in os.walk(directory):
+            file_paths = [os.path.join(root_dir, file) for file in files]
+            convert_and_replace(file_paths, target_format, quality)
+    else:
+        # non-recursive search for files
+        file_paths = [os.path.join(directory, file) for file in os.listdir(directory)]
         convert_and_replace(file_paths, target_format, quality)
 
 def drop(event): # drag and drop
@@ -148,8 +153,12 @@ quality_value_label.pack(side=tk.LEFT, padx=5)
 # overwrite toggle
 overwrite_var = tk.BooleanVar(value=True)
 overwrite_checkbox = ttk.Checkbutton(root, text="Overwrite Source Files", variable=overwrite_var, style='TCheckbutton')
-overwrite_checkbox.pack(pady=5)
+overwrite_checkbox.pack(pady=1)
 
+# recursive toggle
+recursive_var = tk.BooleanVar(value=True)
+recursive_checkbox = ttk.Checkbutton(root, text="Process Subdirectories", variable=recursive_var, style='TCheckbutton')
+recursive_checkbox.pack(pady=1)
 
 on_format_change()
 
