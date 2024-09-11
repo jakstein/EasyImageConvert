@@ -1,21 +1,46 @@
 # EasyImageConvert
-A simple and minimalist image converter GUI written in Python, written out of dislike for bloat other converters offer, while still keeping a simple GUI. Also to practice coding skills.
 
-Supports drag and drop operations, as well as just clicking the upload box and selecting folder with images.
+A simple and minimalist image converter GUI written in Python, created out of a dislike for the bloat other converters offer, while still keeping a simple GUI. This project also serves as a practice for coding skills.
 
-The images will be scanned in the main folder and subfolders. (Planning to add a toggle to disable that)
+## Features
 
-The script also overwrites the images upon successful conversion. (Also have to add a toggle for that)
+- Supports drag and drop operations.
+- Allows selecting a folder with images through a dialog.
+- Scans images in the main folder and subfolders.
+- Overwrites images upon successful conversion.
+- Supports various image formats: PNG, JPEG, JPG, BMP, GIF, WEBP, AVIF, JXL.
+- Accepts quality settings for formats that support it.
 
-Supported formats: PNG, JPEG, JPG, BMP, GIF, WEBP, AVIF, JXL.
-For formats that support it, it also accepts quality setting.
+## Usage
 
-Usage:
+Run the script using Python:
 
-Run the script using Python: ```python easyimgconvert.pyw```
+```sh
+python easyimgconvert.pyw
+```
 
-Required packages: 
-```python
+## Installation
+
+Install the required packages:
+
+```sh
 pip install tkinterdnd2 Pillow pillow_avif pillow_jxl
 ```
-[![image.png](https://i.postimg.cc/SK0zy32x/image.png)](https://postimg.cc/SnrKdZfB)
+
+## Supported Formats
+
+- PNG
+- JPEG
+- JPG
+- BMP
+- GIF
+- WEBP
+- AVIF
+- JXL
+
+## License
+
+This project is licensed under the MIT License.
+
+![Screenshot](https://i.postimg.cc/SK0zy32x/image.png)
+```
