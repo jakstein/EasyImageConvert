@@ -5,6 +5,8 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 from PIL import Image, ExifTags
 import pillow_avif
 import pillow_jxl
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 # map format options to PIL format strings
 format_map = {
@@ -21,50 +23,73 @@ format_map = {
 # formats that support quality settings
 quality_formats = {'jpg', 'jpeg', 'webp', 'avif', 'jxl'}
 
-def convert_and_replace(file_paths, target_format, quality):
+# hold futures in a list
+futures = []
+lock = threading.Lock()
+
+def convert_image(file_path, target_format, quality):
     target_format_pil = format_map[target_format.lower()]
-    for file_path in file_paths:
-        file_path_lower = file_path.lower()
-        file_ext = os.path.splitext(file_path_lower)[1][1:] 
-        if file_ext == target_format.lower():
-            log_message(f"Skipping {file_path}, already in {target_format.upper()} format.")
-            continue
+    file_path_lower = file_path.lower()
+    file_ext = os.path.splitext(file_path_lower)[1][1:]
+    
+    if file_ext == target_format.lower():
+        return f"Skipping {file_path}, already in {target_format.upper()} format."
+    
+    if file_path_lower.endswith(('.webp', '.jpg', '.jpeg', '.png', '.bmp', '.gif', '.avif', '.jxl')):
+        try:
+            # open the image file
+            img = Image.open(file_path)
+            
+            # preserve EXIF data
+            exif_data = img.info.get('exif')
+            
+            # check if image has an alpha channel and remove it for JPEG
+            if target_format.lower() == 'jpg' and img.mode in ('RGBA', 'LA'):
+                # Create a white background image and paste the image onto it
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
+                img = background
+
+            # create the new file path with the chosen extension
+            new_file_path = file_path.rsplit('.', 1)[0] + f'.{target_format.lower()}'
+            
+            # save the image in the chosen format with quality and EXIF data if available
+            save_args = {}
+            if target_format.lower() in quality_formats:
+                save_args['quality'] = quality
+            if exif_data:
+                save_args['exif'] = exif_data
+            img.save(new_file_path, target_format_pil, **save_args)
+
+            if overwrite_var.get():
+                # delete the original file if overwrite_var is True
+                os.remove(file_path)
+
+            return f"Converted {file_path} to {new_file_path} with quality {quality}"
         
-        if file_path_lower.endswith(('.webp', '.jpg', '.jpeg', '.png', '.bmp', '.gif', '.avif', '.jxl')):
-            try:
-                # open the image file
-                img = Image.open(file_path)
-                
-                # preserve EXIF data
-                exif_data = img.info.get('exif')
-                
-                # check if image has an alpha channel and remove it for JPEG
-                if target_format.lower() == 'jpg' and img.mode in ('RGBA', 'LA'):
-                    # Create a white background image and paste the image onto it
-                    background = Image.new("RGB", img.size, (255, 255, 255))
-                    background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
-                    img = background
+        except Exception as e:
+            return f"Error processing {file_path}: {e}"
+    else:
+        return f"Skipping {file_path}, not a supported image format."
 
-                # create the new file path with the chosen extension
-                new_file_path = file_path.rsplit('.', 1)[0] + f'.{target_format.lower()}'
-                
-                # sve the image in the chosen format with quality and EXIF data if available
-                save_args = {}
-                if target_format.lower() in quality_formats:
-                    save_args['quality'] = quality
-                if exif_data:
-                    save_args['exif'] = exif_data
-                img.save(new_file_path, target_format_pil, **save_args)
-                log_message(f"Converted {file_path} to {new_file_path} with quality {quality}")
+def convert_and_replace(file_paths, target_format, quality):
+    global futures
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(convert_image, file_path, target_format, quality) for file_path in file_paths]
+    
+    root.after(100, check_futures)  # check if a result appeared every 100ms
 
-                if overwrite_var.get():
-                    # delete the original file if overwrite_var is True
-                    os.remove(file_path)
-
-            except Exception as e:
-                log_message(f"Error processing {file_path}: {e}")
-        else:
-            log_message(f"Skipping {file_path}, not a supported image format.")
+def check_futures():
+    global futures
+    with lock:
+        for future in futures[:]:  # iterate over a copy of the list
+            if future.done():
+                futures.remove(future)
+                result = future.result()
+                log_message(result)
+    
+    if futures:
+        root.after(100, check_futures)  # continue checking
 
 def process_directory(directory, target_format, quality):
     if recursive_var.get():
@@ -81,14 +106,14 @@ def drop(event): # drag and drop
     file_paths = root.tk.splitlist(event.data)
     target_format = format_var.get()
     quality = int(quality_var.get())
-    convert_and_replace(file_paths, target_format, quality)
+    threading.Thread(target=convert_and_replace, args=(file_paths, target_format, quality)).start()
 
 def open_folder(): # open folder dialog
     folder_selected = filedialog.askdirectory()
     if folder_selected:
         target_format = format_var.get()
         quality = int(quality_var.get())
-        process_directory(folder_selected, target_format, quality)
+        threading.Thread(target=process_directory, args=(folder_selected, target_format, quality)).start()
 
 def log_message(message):
     log_window.config(state=tk.NORMAL)
