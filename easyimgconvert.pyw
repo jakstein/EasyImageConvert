@@ -1,6 +1,6 @@
 import os
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import Menu, ttk, filedialog
 from tkinterdnd2 import DND_FILES, TkinterDnD
 from PIL import Image, ExifTags
 import pillow_avif
@@ -8,6 +8,17 @@ import pillow_jxl
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
+# define supported image formats
+inputformats = {
+    'png': True,
+    'jpg': True,
+    'jpeg': True,
+    'bmp': True,
+    'gif': True,
+    'webp': True,
+    'avif': True,
+    'jxl': True
+}
 # map format options to PIL format strings
 format_map = {
     'png': 'PNG',
@@ -21,7 +32,7 @@ format_map = {
 }
 
 # formats that support quality settings
-quality_formats = {'jpg', 'jpeg', 'webp', 'avif', 'jxl'}
+quality_formats = ('jpg', 'jpeg', 'webp', 'avif', 'jxl')
 
 # hold futures in a list
 futures = []
@@ -34,8 +45,10 @@ def convert_image(file_path, target_format, quality):
     
     if file_ext == target_format.lower():
         return f"Skipping {file_path}, already in {target_format.upper()} format."
+    if not checkbox_vars.get(file_ext, False).get():
+        return f"Skipping {file_path}, format not selected in options."
     
-    if file_path_lower.endswith(('.webp', '.jpg', '.jpeg', '.png', '.bmp', '.gif', '.avif', '.jxl')):
+    if file_path_lower.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp', '.avif', '.jxl')):
         try:
             # open the image file
             img = Image.open(file_path)
@@ -156,6 +169,28 @@ drop_area = tk.Label(root, text="Drop image files here or click to select a fold
 drop_area.pack(padx=10, pady=10)
 drop_area.bind("<Button-1>", lambda event: open_folder())
 
+# menu for recrursive/overwrite options
+recursive_var = tk.BooleanVar(value=True)
+overwrite_var = tk.BooleanVar(value=True)
+menu_bar = Menu(root)
+root.config(menu=menu_bar)
+file_menu = Menu(menu_bar, tearoff=0)
+format_menu = Menu(menu_bar, tearoff=0)
+menu_bar.add_cascade(label="Options", menu=file_menu)
+file_menu.add_checkbutton(label="Recursive", variable=recursive_var)
+file_menu.add_checkbutton(label="Overwrite", variable=overwrite_var)
+file_menu.add_separator()
+file_menu.add_command(label="Exit", command=root.quit)
+menu_bar.add_cascade(label="Input formats", menu=format_menu)
+# create a checkbutton for each input format
+checkbox_vars = {}
+for format_name, is_checked in inputformats.items():
+    # import inputformats values and set them as the initial state of the checkbutton
+    var = tk.BooleanVar(value=is_checked)
+    checkbox_vars[format_name] = var  # store the state of the checkbutton for next loop with the name of format as key
+    format_menu.add_checkbutton(label=format_name.upper(), variable=var)
+
+
 # dropdown box
 format_var = tk.StringVar(value='png')
 format_var.trace_add('write', on_format_change)
@@ -174,16 +209,6 @@ quality_slider.bind("<Motion>", on_quality_change)
 # label for quality value
 quality_value_label = ttk.Label(quality_frame, text=f"Quality: {quality_var.get()}", background='#2b2b2b', foreground='white')
 quality_value_label.pack(side=tk.LEFT, padx=5)
-
-# overwrite toggle
-overwrite_var = tk.BooleanVar(value=True)
-overwrite_checkbox = ttk.Checkbutton(root, text="Overwrite Source Files", variable=overwrite_var, style='TCheckbutton')
-overwrite_checkbox.pack(pady=1)
-
-# recursive toggle
-recursive_var = tk.BooleanVar(value=True)
-recursive_checkbox = ttk.Checkbutton(root, text="Process Subdirectories", variable=recursive_var, style='TCheckbutton')
-recursive_checkbox.pack(pady=1)
 
 on_format_change()
 
