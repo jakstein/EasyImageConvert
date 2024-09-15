@@ -87,7 +87,7 @@ def convert_image(file_path, target_format, quality):
 
 def convert_and_replace(file_paths, target_format, quality):
     global futures
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=worker_count_var.get()) as executor: # limit the number of workers
         futures = [executor.submit(convert_image, file_path, target_format, quality) for file_path in file_paths]
     
     root.after(100, check_futures)  # check if a result appeared every 100ms
@@ -144,7 +144,7 @@ def on_format_change(*args):
 def on_quality_change(event):
     quality_value_label.config(text=f"Quality: {int(quality_var.get())}")
 
-# create the main application window and apply fancy colors (probably messed up)
+# create the main application window and apply fancy colors
 root = TkinterDnD.Tk()
 root.title("Image Converter")
 root.geometry("400x450")
@@ -190,6 +190,12 @@ for format_name, is_checked in inputformats.items():
     checkbox_vars[format_name] = var  # store the state of the checkbutton for next loop with the name of format as key
     format_menu.add_checkbutton(label=format_name.upper(), variable=var)
 
+# menu for futures worker count
+worker_count_var = tk.IntVar(value=2)
+worker_count_menu = Menu(menu_bar, tearoff=0)
+menu_bar.add_cascade(label="Worker count", menu=worker_count_menu)
+for i in range(1, 9):
+    worker_count_menu.add_radiobutton(label=str(i), variable=worker_count_var, value=i)
 
 # dropdown box
 format_var = tk.StringVar(value='png')
