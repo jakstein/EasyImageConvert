@@ -17,7 +17,8 @@ inputformats = {
     'gif': True,
     'webp': True,
     'avif': True,
-    'jxl': True
+    'jxl': True,
+    'ppm': True
 }
 # map format options to PIL format strings
 format_map = {
@@ -28,7 +29,8 @@ format_map = {
     'gif': 'GIF',
     'webp': 'WEBP',
     'avif': 'AVIF',
-    'jxl': 'JXL'
+    'jxl': 'JXL',
+    'ppm': 'PPM'
 }
 
 # formats that support quality settings
@@ -48,7 +50,7 @@ def convert_image(file_path, target_format, quality):
     if not checkbox_vars.get(file_ext, False).get():
         return f"Skipping {file_path}, format not selected in options."
     
-    if file_path_lower.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp', '.avif', '.jxl')):
+    if file_path_lower.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp', '.avif', '.jxl', '.ppm')):
         try:
             # open the image file
             img = Image.open(file_path)
@@ -200,7 +202,7 @@ for i in range(1, 9):
 # dropdown box
 format_var = tk.StringVar(value='png')
 format_var.trace_add('write', on_format_change)
-format_options = ['png', 'jpg', 'bmp', 'gif', 'webp', 'avif', 'jxl']
+format_options = ['png', 'jpg', 'bmp', 'gif', 'webp', 'avif', 'jxl', 'ppm']
 format_menu = ttk.OptionMenu(root, format_var, format_options[0], *format_options)
 format_menu.pack(pady=10)
 
