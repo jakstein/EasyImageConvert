@@ -32,7 +32,7 @@ format_map = {
     'jxl': 'JXL',
     'ppm': 'PPM'
 }
-
+file_states = {}
 # formats that support quality settings
 quality_formats = ('jpg', 'jpeg', 'webp', 'avif', 'jxl')
 
@@ -44,10 +44,12 @@ def convert_image(file_path, target_format, quality):
     target_format_pil = format_map[target_format.lower()]
     file_path_lower = file_path.lower()
     file_ext = os.path.splitext(file_path_lower)[1][1:]
-    
+    file_states[file_path] = 'processing'
     if file_ext == target_format.lower():
+        file_states[file_path] = 'skipped'
         return f"Skipping {file_path}, already in {target_format.upper()} format."
     if not checkbox_vars.get(file_ext, False).get():
+        file_states[file_path] = 'skipped'
         return f"Skipping {file_path}, format not selected in options."
     
     if file_path_lower.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp', '.avif', '.jxl', '.ppm')):
@@ -76,42 +78,57 @@ def convert_image(file_path, target_format, quality):
                 save_args['exif'] = exif_data
             img.save(new_file_path, target_format_pil, **save_args)
 
+            check_futures()
             if overwrite_var.get():
                 # delete the original file if overwrite_var is True
                 os.remove(file_path)
-
-            return f"Converted {file_path} to {new_file_path} with quality {quality}"
-        
+            return 
         except Exception as e:
-            return f"Error processing {file_path}: {e}"
+            file_states[file_path] = 'error'
+            check_futures()
+            return 
     else:
-        return f"Skipping {file_path}, not a supported image format."
+        file_states[file_path] = 'notsupported'
+        check_futures()
+        return
+    
 
 def convert_and_replace(file_paths, target_format, quality):
     global futures
     with ThreadPoolExecutor(max_workers=worker_count_var.get()) as executor: # limit the number of workers
-        futures = [executor.submit(convert_image, file_path, target_format, quality) for file_path in file_paths]
-    
-    root.after(100, check_futures)  # check if a result appeared every 100ms
+        futures = {executor.submit(convert_image, file_path, target_format, quality): file_path for file_path in file_paths}
 
 def check_futures():
-    global futures
+    global futures, file_states
     with lock:
-        for future in futures[:]:  # iterate over a copy of the list
-            if future.done():
-                futures.remove(future)
-                result = future.result()
-                log_message(result)
-    
+        for future in futures.copy(): # iterate over a copy of the list
+            if future.done() and future.result != 'skipped' or 'notsupported': 
+                file_path = futures[future]
+                try:
+                    file_states[file_path] = 'completed'
+                except Exception as e:
+                    file_states[file_path] = 'error'
+                futures.pop(future)
+    log_states(file_states)    # update the log window
+
     if futures:
-        root.after(100, check_futures)  # continue checking
+        root.after(100, check_futures)
+    else:
+        for file_path, state in file_states.items(): # bruteforce way to make everything completed, for some reason few items are left as processing despite being actually completed. errored items will still get logged properly
+            if state == 'processing':
+                file_states[file_path] = 'completed'
+        log_states(file_states)  # final UI update once all tasks are done
+        log_message("All tasks completed.")  # final log message
 
 def process_directory(directory, target_format, quality):
+    clear_log()
     if recursive_var.get():
         # recursive search for files
         for root_dir, _, files in os.walk(directory):
-            file_paths = [os.path.join(root_dir, file) for file in files]
-            convert_and_replace(file_paths, target_format, quality)
+                file_paths = [os.path.join(root_dir, file) for file in files]
+                for file_path in file_paths:
+                    file_states[file_path] = 'todo'
+                convert_and_replace(file_paths, target_format, quality)
     else:
         # non-recursive search for files
         file_paths = [os.path.join(directory, file) for file in os.listdir(directory)]
@@ -129,12 +146,33 @@ def open_folder(): # open folder dialog
         target_format = format_var.get()
         quality = int(quality_var.get())
         threading.Thread(target=process_directory, args=(folder_selected, target_format, quality)).start()
-
+def log_states(states):
+    clear_log()
+    for file_path, state in states.items():
+        if state == 'processing':
+            log_message(f"{file_path}: processing")
+        elif state == 'completed':
+            log_message(f"{file_path}: completed")
+        elif state == 'todo':
+            log_message(f"{file_path}: to do")
+        elif state == 'error':
+            log_message(f"{file_path}: error")
+        elif state == 'notsupported':
+            log_message(f"{file_path}: not supported")
+        elif state == 'skipped':
+            log_message(f"{file_path}: skipped")
+        else:
+            log_message(f"{file_path}: unknown state")
+    log_message("")
 def log_message(message):
     log_window.config(state=tk.NORMAL)
     log_window.insert(tk.END, message + "\n")
     log_window.config(state=tk.DISABLED)
     log_window.yview(tk.END)
+def clear_log():
+    log_window.config(state=tk.NORMAL)
+    log_window.delete('1.0', tk.END)
+    log_window.config(state=tk.DISABLED)
 
 def on_format_change(*args):
     selected_format = format_var.get().lower()
@@ -149,7 +187,7 @@ def on_quality_change(event):
 # create the main application window and apply fancy colors
 root = TkinterDnD.Tk()
 root.title("Image Converter")
-root.geometry("400x450")
+root.geometry("400x600")
 quality_frame = ttk.Frame(root)
 quality_label = ttk.Label(quality_frame, text="Quality:")
 quality_label.pack(side=tk.LEFT, padx=5)
@@ -221,7 +259,7 @@ quality_value_label.pack(side=tk.LEFT, padx=5)
 on_format_change()
 
 # log box
-log_window = tk.Text(root, height=10, width=50, state=tk.DISABLED, bg="#2b2b2b", fg="white", relief="flat", highlightthickness=0)
+log_window = tk.Text(root, height=20, width=100, state=tk.DISABLED, bg="#2b2b2b", fg="white", relief="flat", highlightthickness=0)
 log_window.pack(padx=10, pady=10)
 
 drop_area.drop_target_register(DND_FILES)
