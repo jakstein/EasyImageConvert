@@ -5,6 +5,7 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 from PIL import Image, ExifTags
 import pillow_avif
 import pillow_jxl
+import pillow_heif
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
@@ -18,7 +19,8 @@ inputformats = {
     'webp': True,
     'avif': True,
     'jxl': True,
-    'ppm': True
+    'ppm': True,
+    'heic': True
 }
 # map format options to PIL format strings
 format_map = {
@@ -30,11 +32,12 @@ format_map = {
     'webp': 'WEBP',
     'avif': 'AVIF',
     'jxl': 'JXL',
-    'ppm': 'PPM'
+    'ppm': 'PPM',
+    'heic': 'HEIC'
 }
 file_states = {}
 # formats that support quality settings
-quality_formats = ('jpg', 'jpeg', 'webp', 'avif', 'jxl')
+quality_formats = ('jpg', 'jpeg', 'webp', 'avif', 'jxl', 'heic')
 
 # hold futures in a list
 futures = []
@@ -52,7 +55,7 @@ def convert_image(file_path, target_format, quality):
         file_states[file_path] = 'skipped'
         return f"Skipping {file_path}, format not selected in options."
     
-    if file_path_lower.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp', '.avif', '.jxl', '.ppm')):
+    if file_path_lower.endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp', '.avif', '.jxl', '.ppm', '.heic')):
         try:
             # open the image file
             img = Image.open(file_path)
@@ -240,7 +243,7 @@ for i in range(1, 9):
 # dropdown box
 format_var = tk.StringVar(value='png')
 format_var.trace_add('write', on_format_change)
-format_options = ['png', 'jpg', 'bmp', 'gif', 'webp', 'avif', 'jxl', 'ppm']
+format_options = ['png', 'jpg', 'bmp', 'gif', 'webp', 'avif', 'jxl', 'ppm', 'heic']
 format_menu = ttk.OptionMenu(root, format_var, format_options[0], *format_options)
 format_menu.pack(pady=10)
 
